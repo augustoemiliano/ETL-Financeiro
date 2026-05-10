@@ -1,0 +1,4 @@
+symbol,trade_date,currency,open,high,low,close,volume
+PETR4,2024-01-02,BRL,30.2,31.1,29.9,31.0,150000
+VALE3,2024-01-02,BRL,62.8,63.5,61.9,62.95,87000
+ITUB4,2024-01-03,BRL,32.1,33.0,31.9,33.05,94500

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ETL Financeiro Inteligente — console</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0c111b;
+        --panel: #141b29;
+        --border: #243045;
+        --text: #e8edf5;
+        --muted: #8b97ad;
+        --accent: #3d9cf5;
+        --ok: #3dd598;
+        --warn: #f5c84d;
+        --err: #f06b6b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          Segoe UI,
+          Roboto,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      header {
+        border-bottom: 1px solid var(--border);
+        padding: 1.25rem 1.5rem;
+        background: rgba(17, 24, 39, 0.9);
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 600;
+      }
+      p.sub {
+        margin: 0.35rem 0 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 1.25rem;
+      }
+      .grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        margin-bottom: 1rem;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem;
+      }
+      button {
+        width: 100%;
+        cursor: pointer;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: rgba(61, 156, 245, 0.12);
+        color: var(--text);
+        font-size: 0.9rem;
+        padding: 0.65rem 0.85rem;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      button:hover:not(:disabled) {
+        border-color: var(--accent);
+        background: rgba(61, 156, 245, 0.22);
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .pill {
+        display: inline-block;
+        padding: 0.12rem 0.45rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 600;
+      }
+      .pill.ok {
+        background: rgba(61, 213, 152, 0.15);
+        color: var(--ok);
+      }
+      .pill.warn {
+        background: rgba(245, 200, 77, 0.14);
+        color: var(--warn);
+      }
+      .pill.bad {
+        background: rgba(240, 107, 107, 0.18);
+        color: var(--err);
+      }
+      pre {
+        margin: 0;
+        padding: 1rem;
+        background: #0a0e16;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: auto;
+        font-size: 0.76rem;
+        line-height: 1.55;
+      }
+      a {
+        color: var(--accent);
+      }
+      .links {
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      .links a {
+        margin-right: 0.75rem;
+      }
+      .meta {
+        font-size: 0.76rem;
+        color: var(--muted);
+      }
+      h2 {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 1.25rem 0 0.55rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>ETL Financeiro Inteligente</h1>
+      <p class="sub">
+        Painel de demonstração chamando a própria API FastAPI (<code>same-origin</code>). Útil para testar Postgres + pipeline sem Postman ou <code>curl</code>.
+      </p>
+      <p class="links" style="margin-top: 0.75rem">
+        <a href="/docs" target="_blank" rel="noopener">Swagger /docs</a>
+        <a href="/openapi.json" target="_blank" rel="noopener">OpenAPI JSON</a>
+        <span class="pill ok" id="origin-pill"></span>
+      </p>
+    </header>
+    <main>
+      <div class="grid">
+        <div class="card">
+          <button type="button" id="btn-health">GET /health</button>
+          <p class="meta" style="margin: 0.55rem 0 0"></p>
+        </div>
+        <div class="card">
+          <button type="button" id="btn-etl">
+            POST /etl/run
+            <br />
+            <small style="color: var(--muted)">pode demorar (API FX + loaders)</small>
+          </button>
+        </div>
+        <div class="card">
+          <button type="button" id="btn-snapshot">GET /reports/snapshot</button>
+          <small style="display: block; margin-top: 0.55rem; color: var(--muted); line-height: 1.35"
+            >Gera/atualiza arquivos em <code>/reports</code> no servidor conforme código.</small
+          >
+        </div>
+      </div>
+
+      <div class="meta" style="margin-bottom: 0.35rem">
+        Estado: <span class="pill warn" id="status-pill">ocioso</span>
+        &nbsp;<span id="status-detail"></span>
+      </div>
+
+      <h2>Último JSON</h2>
+      <pre id="output">{}</pre>
+    </main>
+    <script>
+      document.getElementById("origin-pill").textContent =
+        typeof window.location?.origin === "string" ? window.location.origin : "local";
+
+      const out = document.getElementById("output");
+      const pill = document.getElementById("status-pill");
+      const detail = document.getElementById("status-detail");
+
+      async function exec(label, runner) {
+        const buttons = [...document.querySelectorAll("main button")];
+        buttons.forEach((b) => (b.disabled = true));
+        pill.className = "pill warn";
+        pill.textContent = "executando";
+        detail.textContent = "";
+
+        try {
+          const payload = await runner();
+          pill.className = "pill ok";
+          pill.textContent = "ok";
+          detail.textContent = label;
+          out.textContent =
+            typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+        } catch (err) {
+          pill.className = "pill bad";
+          pill.textContent = "erro";
+          detail.textContent = label;
+          out.textContent = String(err?.stack ?? err ?? "Erro desconhecido");
+        } finally {
+          buttons.forEach((b) => (b.disabled = false));
+        }
+      }
+
+      async function fetchJson(url, opts) {
+        const res = await fetch(url, opts);
+        const text = await res.text();
+        if (!res.ok) {
+          throw new Error(`${res.status} ${res.statusText}\n${text}`);
+        }
+        if (!text) return {};
+        try {
+          return JSON.parse(text);
+        } catch {
+          return text;
+        }
+      }
+
+      document.getElementById("btn-health").addEventListener("click", () =>
+        exec("GET /health", () => fetchJson("/health")),
+      );
+
+      document.getElementById("btn-etl").addEventListener("click", () =>
+        exec(
+          "POST /etl/run",
+          () =>
+            fetchJson("/etl/run", {
+              method: "POST",
+              headers: { Accept: "application/json", "Content-Type": "application/json" },
+              body: "{}",
+            }),
+        ),
+      );
+
+      document.getElementById("btn-snapshot").addEventListener("click", () =>
+        exec("GET /reports/snapshot", () => fetchJson("/reports/snapshot")),
+      );
+
+    </script>
+  </body>
+</html>

@@ -1,0 +1,29 @@
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  alembic/versions
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["app", "main.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/api/**/*.py" = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["app/tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+markers = [
+    "integration: tests that require PostgreSQL (set DATABASE_URL or use docker-compose)",
+]
+addopts = "-q --tb=short"
