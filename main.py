@@ -25,15 +25,20 @@ def run_etl_cycle() -> None:
     try:
         pipeline = ETLPipelineService(settings)
         stats = pipeline.run_full_pipeline(session)
-        ReportingService(settings).export_snapshot(session)
+        report = ReportingService(settings).export_snapshot(session, batch_id=stats.batch_id)
         logger.info(
-            "Execução concluída: batch=%s linhas=%s inserts=%s duplicidades=%s tempo=%.3fs",
+            "Execução concluída: batch=%s linhas=%s rejeitadas=%s inserts=%s duplicidades=%s "
+            "fontes_com_falha=%s tempo=%.3fs",
             stats.batch_id,
             stats.rows_transformed,
+            stats.rows_rejected,
             stats.inserts,
             stats.duplicates,
+            len(stats.sources_failed),
             stats.seconds,
         )
+        for name, path in report["artifacts"].items():
+            logger.info("Relatório gerado (%s): %s", name, path)
     finally:
         session.close()
 
@@ -47,7 +52,11 @@ def scheduler_loop() -> None:
         logger.warning("SCHEDULER_ENABLED=false — encerrando sem loop (use apenas run-etl/api).")
         return
 
-    attach_daily_etl(run_etl_cycle, settings.scheduler_run_time)
+    attach_daily_etl(
+        run_etl_cycle,
+        settings.scheduler_run_time,
+        attempts=settings.scheduler_retry_attempts,
+    )
 
     logger.info(
         "Scheduler ativo (%s horário local). CTRL+C para encerrar.",

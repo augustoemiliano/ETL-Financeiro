@@ -77,10 +77,18 @@ class FinancialMetricRepository:
         self._session.flush()
         return count
 
-    def summary_between(self, start: date, end: date) -> list[FinancialMetric]:
-        stmt = (
-            select(FinancialMetric)
-            .where(FinancialMetric.metric_date >= start, FinancialMetric.metric_date <= end)
-            .order_by(FinancialMetric.metric_date.asc())
+    def summary_between(
+        self, start: date | None = None, end: date | None = None
+    ) -> list[FinancialMetric]:
+        """Métricas no intervalo [start, end]; limites `None` deixam o lado aberto."""
+        stmt = select(FinancialMetric)
+        if start is not None:
+            stmt = stmt.where(FinancialMetric.metric_date >= start)
+        if end is not None:
+            stmt = stmt.where(FinancialMetric.metric_date <= end)
+        stmt = stmt.order_by(
+            FinancialMetric.metric_date.asc(),
+            FinancialMetric.metric_type.asc(),
+            FinancialMetric.symbol.asc(),
         )
         return list(self._session.scalars(stmt))
