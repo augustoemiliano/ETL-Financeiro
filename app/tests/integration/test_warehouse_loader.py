@@ -24,17 +24,24 @@ from app.services.report_service import ReportingService
 pytestmark = pytest.mark.integration
 
 
+def _unavailable(reason: str) -> None:
+    # No CI (REQUIRE_POSTGRES=1) a ausência do banco é falha, não skip silencioso.
+    if os.getenv("REQUIRE_POSTGRES") == "1":
+        pytest.fail(reason)
+    pytest.skip(reason)
+
+
 def _postgres_engine():
     database_url = os.getenv("DATABASE_URL", "")
     if "postgresql" not in database_url:
-        pytest.skip("integração Postgres requer DATABASE_URL com driver postgresql")
+        _unavailable("integração Postgres requer DATABASE_URL com driver postgresql")
 
     engine = create_engine(database_url, pool_pre_ping=True)
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
     except OperationalError:
-        pytest.skip("Postgres inacessível neste ambiente (subir docker-compose).")
+        _unavailable("Postgres inacessível neste ambiente (subir docker-compose).")
 
     return engine
 
