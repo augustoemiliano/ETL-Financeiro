@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects.postgresql import JSON
 
 revision = "001_financial_metrics"
 down_revision = None
+
+
+def _now_utc_default() -> sa.TextClause:
+    # PostgreSQL é o alvo oficial; SQLite é aceito apenas para desenvolvimento local.
+    if op.get_context().dialect.name == "postgresql":
+        return sa.text("timezone('utc', now())")
+    return sa.text("CURRENT_TIMESTAMP")
 
 
 def upgrade() -> None:
@@ -19,13 +25,13 @@ def upgrade() -> None:
         sa.Column("metric_type", sa.String(length=32), nullable=False),
         sa.Column("currency", sa.String(length=16), nullable=False),
         sa.Column("amount", sa.Float(), nullable=False),
-        sa.Column("extras", JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column("extras", sa.JSON(), nullable=True),
         sa.Column("source_system", sa.String(length=64), nullable=False),
         sa.Column("load_batch_id", sa.String(length=128), nullable=True),
         sa.Column(
             "ingested_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("timezone('utc', now())"),
+            server_default=_now_utc_default(),
             nullable=False,
         ),
         sa.UniqueConstraint(
