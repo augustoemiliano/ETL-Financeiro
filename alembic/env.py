@@ -21,7 +21,8 @@ from app.models.financial_metric import FinancialMetric  # noqa: F401,E402
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Não desliga os loggers da aplicação já configurados (ex.: migração chamada em testes).
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
