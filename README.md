@@ -184,7 +184,7 @@ RF_PLUS,BRL,35000.0,14.2565,3
 ```csv
 source_system,metric_type,records,symbols,first_date,last_date,avg_amount
 frankfurter_api,FX_SPOT,3,3,2026-10-30,2026-10-30,2.357973
-local_csv_markets,EQUITY_LAST,6,5,2024-01-02,2024-02-01,39.538333
+local_csv_markets,EQUITY_LAST,6,4,2024-01-02,2024-02-01,39.538333
 local_xlsx_portfolio,POSITION_MARK,3,3,2024-06-03,2024-06-04,81833.75
 ```
 
