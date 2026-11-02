@@ -19,6 +19,8 @@ class CsvMarketExtractor:
             raise FileSourceError(f"Arquivo CSV ausente: {self._path}")
         try:
             df = pd.read_csv(self._path, encoding=self._encoding)
-        except pd.errors.ParserError as exc:
+        except pd.errors.EmptyDataError as exc:
+            raise FileSourceError(f"CSV vazio: {self._path}") from exc
+        except (pd.errors.ParserError, UnicodeDecodeError) as exc:
             raise FileSourceError(f"CSV malformado: {self._path}") from exc
         return ExtractionOutcome(name=f"csv_local::{self._path.name}", frame=df)
