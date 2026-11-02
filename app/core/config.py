@@ -71,7 +71,8 @@ class Settings(BaseSettings):
     def _empty_as_none(cls, value: object) -> object:
         return None if value == "" else value
 
-    api_host: str = Field(default="0.0.0.0", alias="API_HOST")
+    # Seguro por padrão: só a máquina local. O container sobrescreve para 0.0.0.0.
+    api_host: str = Field(default="127.0.0.1", alias="API_HOST")
     api_port: int = Field(default=8000, alias="API_PORT")
 
 
