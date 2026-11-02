@@ -1,0 +1,9 @@
+# Normaliza finais de linha no repositório (LF).
+* text=auto eol=lf
+
+# Scripts executados dentro do container Linux precisam de LF mesmo em clones Windows.
+*.sh text eol=lf
+
+# Binários
+*.xlsx binary
+*.png binary

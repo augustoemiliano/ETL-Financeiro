@@ -10,9 +10,9 @@ from app.etl.transform.normalizers import (
 
 
 def test_drop_duplicates_keeps_most_recent_stable_order() -> None:
-    df = pd.DataFrame(
-        {"k": ["A", "A", "B"], "v": [1, 2, 3], "trade_date": [1, 2, 3]}
-    ).sort_values("trade_date")
+    df = pd.DataFrame({"k": ["A", "A", "B"], "v": [1, 2, 3], "trade_date": [1, 2, 3]}).sort_values(
+        "trade_date"
+    )
     cleaned = drop_duplicates_stable(df, subset=["k"])
     assert cleaned["v"].tolist() == [2, 3]
 

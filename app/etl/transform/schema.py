@@ -25,8 +25,7 @@ SCHEMA_PIPELINE_OUTPUT: list[ColumnSpec] = [
 ]
 
 
-class SchemaValidationError(ValueError):
-    ...
+class SchemaValidationError(ValueError): ...
 
 
 def assert_schema(df: pd.DataFrame, spec: list[ColumnSpec]) -> None:

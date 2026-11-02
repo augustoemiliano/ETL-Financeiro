@@ -7,16 +7,13 @@ from dataclasses import dataclass
 import pandas as pd
 
 
-class ExtractionError(Exception):
-    ...
+class ExtractionError(Exception): ...
 
 
-class SourceUnavailableError(ExtractionError):
-    ...
+class SourceUnavailableError(ExtractionError): ...
 
 
-class FileSourceError(ExtractionError):
-    ...
+class FileSourceError(ExtractionError): ...
 
 
 @dataclass(frozen=True)

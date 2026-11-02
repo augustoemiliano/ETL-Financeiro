@@ -1,16 +1,38 @@
+# Python
 __pycache__/
 *.py[cod]
 .Python
+*.egg-info/
+
+# Ambientes virtuais
 venv/
 .venv/
+
+# Segredos / configuração local
 .env
+.env.*
+!.env.example
+
+# IDEs
 .idea/
 .vscode/
+
+# Caches de ferramentas
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
-logs/*.log
-reports/*
-!reports/.gitkeep
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Bancos locais (modo SQLite de desenvolvimento)
+*.db
+*.sqlite
+*.sqlite3
+
+# Saídas operacionais geradas pelo pipeline
 logs/*
 !logs/.gitkeep
+reports/*
+!reports/.gitkeep

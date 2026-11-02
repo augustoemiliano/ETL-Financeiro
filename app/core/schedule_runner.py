@@ -19,7 +19,6 @@ def attach_daily_etl(trigger: Callable[[], None], run_time_local: str) -> Callab
     def resilient_trigger() -> None:
         trigger()
 
-
     schedule.every().day.at(run_time_local).do(resilient_trigger)
     logger.info("Agenda diária configurada para %s (timezone local)", run_time_local)
     return resilient_trigger
