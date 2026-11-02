@@ -23,7 +23,11 @@ class FinancialMetricRepository:
         self._session = session
 
     def upsert_dataframe(self, df: pd.DataFrame, chunk_size: int = 500) -> tuple[int, int]:
-        """UPSERT incremental (PostgreSQL ON CONFLICT), retorna (attempted inserts, duplicates)."""
+        """Inserção idempotente via ON CONFLICT DO NOTHING.
+
+        Linhas já existentes são ignoradas (não atualizadas).
+        Retorna (inserts tentados, duplicidades).
+        """
 
         if df.empty:
             return (0, 0)

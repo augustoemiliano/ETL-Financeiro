@@ -62,7 +62,7 @@ Camadas (cada pasta tem uma responsabilidade):
 | `app/core/` | configuração por variáveis de ambiente (`pydantic-settings`), logging, scheduler |
 | `app/etl/extract/` | leitores de API/CSV/XLSX com erros próprios (`SourceUnavailableError`, `FileSourceError`) |
 | `app/etl/transform/` | conversão para o schema canônico, normalização e validação (`schema.py`) |
-| `app/etl/load/`, `app/repositories/`, `app/models/` | ORM, UPSERT e consultas |
+| `app/etl/load/`, `app/repositories/`, `app/models/` | ORM, inserção idempotente (`ON CONFLICT DO NOTHING`) e consultas |
 | `app/services/` | orquestração do pipeline (`etl_service.py`) e relatórios (`report_service.py`) |
 | `app/api/` | FastAPI: dispara o pipeline e expõe snapshots |
 | `alembic/` | migrações versionadas do banco |
