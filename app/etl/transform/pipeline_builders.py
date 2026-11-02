@@ -11,13 +11,31 @@ from app.etl.transform.normalizers import (
     coerce_numeric_columns,
     drop_duplicates_stable,
     ensure_date,
-    fill_numeric_nulls_with_median,
 )
-from app.etl.transform.schema import SCHEMA_PIPELINE_OUTPUT, assert_schema
+from app.etl.transform.schema import SCHEMA_PIPELINE_OUTPUT
 
 FX_SOURCE = "frankfurter_api"
 CSV_PATTERN_SOURCE = "local_csv_markets"
 XLSX_PATTERN_SOURCE = "local_xlsx_portfolio"
+
+NATURAL_KEY = ["symbol", "metric_date", "metric_type", "source_system"]
+
+
+def _empty_canonical_frame() -> pd.DataFrame:
+    return pd.DataFrame(columns=[c.name for c in SCHEMA_PIPELINE_OUTPUT])
+
+
+def _clean_symbol(value: object) -> str | None:
+    if value is None or pd.isna(value):
+        return None
+    text = str(value).strip().upper()
+    return text or None
+
+
+def _clean_currency(value: object) -> str | None:
+    if value is None or pd.isna(value):
+        return None
+    return str(value).strip().upper() or None
 
 
 def _pythonize_extras(raw: dict) -> dict:
@@ -52,53 +70,50 @@ def build_from_fx(outcome: ExtractionOutcome, load_batch_id: str) -> pd.DataFram
                 "extras": {"base_currency": row["base_currency"], "provider": FX_SOURCE},
             },
         )
+    if not rows:
+        return _empty_canonical_frame()
     normalized = pd.DataFrame(rows)
-    normalized = normalized.dropna(subset=["metric_date", "amount"])
-    normalized["metric_date"] = pd.to_datetime(normalized["metric_date"])
-    assert_schema(normalized, SCHEMA_PIPELINE_OUTPUT)
+    normalized["metric_date"] = pd.to_datetime(normalized["metric_date"], errors="coerce")
     return normalized
 
 
 def build_from_market_csv(outcome: ExtractionOutcome, load_batch_id: str) -> pd.DataFrame:
+    """Converte cotações de mercado. Valores inválidos NÃO são imputados: seguem para a
+    validação (`validate_records`), que os coloca em quarentena com o motivo."""
+
     df = outcome.frame.copy()
     required = {"symbol", "trade_date", "currency", "close"}
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"CSV de mercado incompleto, faltando {sorted(missing)}")
+    if df.empty:
+        return _empty_canonical_frame()
 
-    working = coerce_numeric_columns(df, ["close", "volume"])
-    numeric_cols = [c for c in ["close", "volume"] if c in working.columns]
-    if numeric_cols:
-        working = fill_numeric_nulls_with_median(working, numeric_cols)
-    working["trade_date"] = pd.to_datetime(ensure_date(working, "trade_date"))
-    working = working.dropna(subset=["symbol", "trade_date", "close"])
-    extras_cols = {"open": "open", "high": "high", "low": "low", "volume": "volume"}
+    working = coerce_numeric_columns(df, ["open", "high", "low", "close", "volume"])
+    working["trade_date"] = ensure_date(working, "trade_date")
+    extras_cols = ("open", "high", "low", "volume")
     rows = []
     for _, row in working.iterrows():
         extras_payload: dict = {}
-        for key, alias in extras_cols.items():
-            if alias in row.index and pd.notna(row[alias]):
-                extras_payload[key] = float(row[alias]) if key != "volume" else int(row[alias])
+        for key in extras_cols:
+            if key in row.index and pd.notna(row[key]):
+                extras_payload[key] = float(row[key]) if key != "volume" else int(row[key])
         rows.append(
             {
-                "symbol": str(row["symbol"]).upper(),
-                "metric_date": pd.to_datetime(row["trade_date"]),
+                "symbol": _clean_symbol(row["symbol"]),
+                "metric_date": row["trade_date"],
                 "metric_type": "EQUITY_LAST",
-                "currency": str(row["currency"]).upper(),
-                "amount": float(row["close"]),
+                "currency": _clean_currency(row["currency"]),
+                "amount": row["close"],
                 "source_system": CSV_PATTERN_SOURCE,
                 "load_batch_id": load_batch_id,
                 "extras": extras_payload or None,
             },
         )
     normalized = pd.DataFrame(rows)
-    normalized["metric_date"] = normalized["metric_date"].dt.normalize()
-    normalized = drop_duplicates_stable(
-        normalized,
-        subset=["symbol", "metric_date", "metric_type", "source_system"],
-    )
-    assert_schema(normalized, SCHEMA_PIPELINE_OUTPUT)
-    return normalized
+    normalized["metric_date"] = pd.to_datetime(normalized["metric_date"], errors="coerce")
+    normalized["amount"] = pd.to_numeric(normalized["amount"], errors="coerce")
+    return drop_duplicates_stable(normalized, subset=NATURAL_KEY)
 
 
 def build_from_portfolio_xlsx(outcome: ExtractionOutcome, load_batch_id: str) -> pd.DataFrame:
@@ -112,9 +127,11 @@ def build_from_portfolio_xlsx(outcome: ExtractionOutcome, load_batch_id: str) ->
     missing = required - set(working.columns)
     if missing:
         raise ValueError(f"XLSX incompleto, faltando {sorted(missing)}")
+    if working.empty:
+        return _empty_canonical_frame()
 
+    # Sem imputação: posição sem valor é rejeitada na validação (não inventamos saldo).
     working = coerce_numeric_columns(working, ["position_value"])
-    working = fill_numeric_nulls_with_median(working, ["position_value"])
     if "ref_date" in working.columns:
         working["_metric_date"] = ensure_date(working, "ref_date")
     elif "snapshot_date" in working.columns:
@@ -139,21 +156,19 @@ def build_from_portfolio_xlsx(outcome: ExtractionOutcome, load_batch_id: str) ->
                 extras_candidates[key] = val
         rows.append(
             {
-                "symbol": str(row["fund"]).strip().upper(),
-                "metric_date": pd.to_datetime(row["_metric_date"]),
+                "symbol": _clean_symbol(row["fund"]),
+                "metric_date": row["_metric_date"],
                 "metric_type": "POSITION_MARK",
-                "currency": str(row["base_currency"]).upper(),
-                "amount": float(row["position_value"]),
+                "currency": _clean_currency(row["base_currency"]),
+                "amount": row["position_value"],
                 "source_system": XLSX_PATTERN_SOURCE,
                 "load_batch_id": load_batch_id,
                 "extras": _pythonize_extras(extras_candidates) if extras_candidates else None,
             },
         )
     normalized = pd.DataFrame(rows)
-    normalized["metric_date"] = pd.to_datetime(normalized["metric_date"]).dt.normalize()
-    normalized = drop_duplicates_stable(
-        normalized,
-        subset=["symbol", "metric_date", "metric_type", "source_system"],
-    )
-    assert_schema(normalized, SCHEMA_PIPELINE_OUTPUT)
-    return normalized
+    normalized["metric_date"] = pd.to_datetime(
+        normalized["metric_date"], errors="coerce"
+    ).dt.normalize()
+    normalized["amount"] = pd.to_numeric(normalized["amount"], errors="coerce")
+    return drop_duplicates_stable(normalized, subset=NATURAL_KEY)
