@@ -16,11 +16,11 @@ api)
 scheduler)
   exec python main.py scheduler
   ;;
-etl)
+etl | run-etl)
   exec python main.py run-etl
   ;;
 *)
-  echo "Modo '${MODE}' desconhecido. Use api | scheduler | etl." >&2
+  echo "Modo '${MODE}' desconhecido. Use api | scheduler | etl (ou run-etl)." >&2
   exit 1
   ;;
 esac
