@@ -24,6 +24,18 @@ testpaths = ["app/tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 markers = [
-    "integration: tests that require PostgreSQL (set DATABASE_URL or use docker-compose)",
+    "integration: testes que exigem PostgreSQL real (DATABASE_URL postgresql; pulados sem servidor)",
 ]
 addopts = "-q --tb=short"
+filterwarnings = [
+    # Aviso interno do Starlette sobre o backend httpx do TestClient (externo ao projeto).
+    "ignore:Using `httpx` with `starlette.testclient`",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
